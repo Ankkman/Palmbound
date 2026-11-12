@@ -48,6 +48,12 @@ public class PalmCarryRobot : MonoBehaviour
     [SerializeField] private bool logStateChanges = true;
     [SerializeField] private bool logPalmAngle = false;
 
+    [Header("Robot Animation")]
+    [SerializeField] private Animator robotAnimator;
+
+    private static readonly int IsWalkingHash =
+        Animator.StringToHash("IsWalking");
+
     private CarryState state = CarryState.Waiting;
     private Vector3 startPosition;
 
@@ -67,6 +73,9 @@ public class PalmCarryRobot : MonoBehaviour
     {
         startPosition = transform.position;
         Log("Waiting for stable, upward-facing palm.");
+
+        // Explicitly ensure the robot is not walking on initialization
+        SetWalking(false);
     }
 
     private void LateUpdate()
@@ -176,6 +185,12 @@ public class PalmCarryRobot : MonoBehaviour
         }
     }
 
+    private void SetWalking(bool walking)
+    {
+        if (robotAnimator != null)
+            robotAnimator.SetBool(IsWalkingHash, walking);
+    }
+
     private bool HandIsStable()
     {
         return palmValid &&
@@ -211,6 +226,9 @@ public class PalmCarryRobot : MonoBehaviour
             state = CarryState.Boarding;
 
             Log("Boarding palm.");
+            
+            // Add: Start walking animation when boarding process begins
+            SetWalking(true);
         }
     }
 
@@ -230,6 +248,9 @@ public class PalmCarryRobot : MonoBehaviour
         {
             state = CarryState.Carrying;
             Log("Robot is now on your palm.");
+
+            // Add: Stop walking animation when safely settled on the palm
+            SetWalking(false);
         }
     }
 
@@ -238,11 +259,11 @@ public class PalmCarryRobot : MonoBehaviour
         if (!CheckPalmContinuity())
             return;
 
+        // Frame-rate-independent smoothing.
         Vector3 target =
             palmJoint.position +
             Vector3.up * robotHeight;
 
-        // Frame-rate-independent smoothing.
         float followAmount =
             1f - Mathf.Exp(
                 -followSharpness * Time.deltaTime
@@ -275,13 +296,14 @@ public class PalmCarryRobot : MonoBehaviour
             state = CarryState.Disembarking;
 
             Log("Landing confirmed. Disembarking.");
+
+            // Add: Start walking animation as the robot prepares to step off
+            SetWalking(true);
         }
     }
 
     private void UpdateDisembarking()
     {
-        // Once the landing is confirmed, the robot
-        // finishes walking onto the destination.
         MoveRobot(landingExitPoint.position);
 
         if (Vector3.Distance(
@@ -294,6 +316,9 @@ public class PalmCarryRobot : MonoBehaviour
             state = CarryState.Completed;
 
             Log("Palm Elevator puzzle completed!");
+
+            // Add: Stop walking animation once the final destination is reached
+            SetWalking(false);
         }
     }
 
@@ -302,8 +327,18 @@ public class PalmCarryRobot : MonoBehaviour
         if (palmValid)
         {
             trackingLostTimer = 0f;
+
+            // Add: If tracking was restored while still boarding, resume walking animation
+            if (state == CarryState.Boarding)
+            {
+                SetWalking(true);
+            }
+
             return true;
         }
+
+        // Add: Stop animation immediately when tracking fails so the robot freezes cleanly
+        SetWalking(false);
 
         trackingLostTimer += Time.deltaTime;
 
@@ -333,6 +368,9 @@ public class PalmCarryRobot : MonoBehaviour
         trackingLostTimer = 0f;
 
         Log("Palm lost. Robot returned to start.");
+
+        // Add: Force the walking animation off when resetting back to start
+        SetWalking(false);
     }
 
     private void Log(string message)

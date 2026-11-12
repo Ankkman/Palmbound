@@ -255,4 +255,39 @@ public class PalmBridgeController : MonoBehaviour
             bridgeCenter.position
         );
     }
+
+
+
+    public void ConfigureGeneratedBridge(
+        Transform newBridgeCenter,
+        GameObject newBridgeVisual)
+    {
+        if (newBridgeCenter == null ||
+            newBridgeVisual == null)
+        {
+            Debug.LogError(
+                "PALMBOUND: Invalid generated bridge references.");
+            return;
+        }
+
+        // Hide the visual from the previous prototype.
+        if (bridgeVisual != null &&
+            bridgeVisual != newBridgeVisual)
+        {
+            bridgeVisual.SetActive(false);
+        }
+
+        bridgeCenter = newBridgeCenter;
+        bridgeVisual = newBridgeVisual;
+
+        // The old single-mesh renderer no longer applies.
+        // The new bridge contains multiple decorative meshes.
+        bridgeRenderer = null;
+
+        bridgeVisual.SetActive(false);
+
+        Debug.Log(
+            "PALMBOUND: Generated workshop bridge connected.");
+    }
+
 }
